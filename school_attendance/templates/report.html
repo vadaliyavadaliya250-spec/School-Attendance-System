@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Reports — School Attendance{% endblock %}
+
+{% block content %}
+
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+  <div>
+    <h4 class="mb-0 fw-bold">Attendance Report</h4>
+    <small class="text-muted">Roll-number wise attendance summary</small>
+  </div>
+  <div class="d-flex gap-2">
+    <form method="get" class="d-flex gap-2">
+      <select name="cls" class="form-select form-select-sm" onchange="this.form.submit()">
+        {% for c in classes %}
+        <option value="{{ c }}" {% if c == cls %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </form>
+    <a href="{{ url_for('export', cls=cls) }}" class="btn btn-sm btn-outline-success">
+      <i class="bi bi-download me-1"></i>Export
+    </a>
+  </div>
+</div>
+
+{% if not all_dates %}
+<div class="card border-0 shadow-sm">
+  <div class="card-body text-center py-5 text-muted">
+    <i class="bi bi-calendar-x display-5 d-block mb-3 opacity-50"></i>
+    No attendance data recorded for <strong>{{ cls }}</strong> yet.<br>
+    <a href="{{ url_for('attendance_page', cls=cls) }}" class="btn btn-primary btn-sm mt-3">Mark Attendance</a>
+  </div>
+</div>
+{% else %}
+
+<!-- Summary cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="mini-stat bg-white">
+      <div class="mini-label">Total Students</div>
+      <div class="mini-val">{{ roll_data|length }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="mini-stat bg-white">
+      <div class="mini-label">Days Recorded</div>
+      <div class="mini-val text-primary">{{ all_dates|length }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    {% set above75 = roll_data | selectattr('pct', 'ge', 75) | list | length %}
+    <div class="mini-stat bg-white">
+      <div class="mini-label">Above 75%</div>
+      <div class="mini-val text-success">{{ above75 }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    {% set below75 = roll_data | selectattr('pct', 'lt', 75) | selectattr('total', 'gt', 0) | list | length %}
+    <div class="mini-stat bg-white">
+      <div class="mini-label">Below 75%</div>
+      <div class="mini-val text-danger">{{ below75 }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-4" style="width:90px">Roll No</th>
+            {% for d in all_dates %}
+            <th class="text-center" style="font-size:0.7rem;min-width:60px">
+              {{ d[5:] }}
+            </th>
+            {% endfor %}
+            <th class="text-center">Present</th>
+            <th class="text-center">Absent</th>
+            <th style="min-width:160px">Attendance %</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in roll_data %}
+          <tr>
+            <td class="ps-4 fw-bold text-primary">{{ r.roll }}</td>
+            {% for d in all_dates %}
+            {% set s = r.days.get(d, '') %}
+            <td class="text-center">
+              {% if s == 'P' %}
+              <span class="dot-p" title="Present"></span>
+              {% elif s == 'A' %}
+              <span class="dot-a" title="Absent"></span>
+              {% else %}
+              <span class="text-muted" style="font-size:0.7rem">—</span>
+              {% endif %}
+            </td>
+            {% endfor %}
+            <td class="text-center text-success fw-semibold">{{ r.present }}</td>
+            <td class="text-center text-danger fw-semibold">{{ r.total - r.present }}</td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div class="progress flex-grow-1" style="height:7px;border-radius:4px;">
+                  <div class="progress-bar
+                    {% if r.pct >= 75 %}bg-success{% elif r.pct >= 50 %}bg-warning{% else %}bg-danger{% endif %}"
+                    style="width:{{ r.pct }}%"></div>
+                </div>
+                <span class="small fw-semibold
+                  {% if r.pct >= 75 %}text-success{% elif r.pct >= 50 %}text-warning{% else %}text-danger{% endif %}"
+                  style="min-width:38px">{{ r.pct }}%</span>
+              </div>
+            </td>
+            <td>
+              {% if r.total == 0 %}
+              <span class="badge bg-secondary">No Data</span>
+              {% elif r.pct >= 75 %}
+              <span class="badge text-bg-success">Regular</span>
+              {% elif r.pct >= 50 %}
+              <span class="badge text-bg-warning">Average</span>
+              {% else %}
+              <span class="badge text-bg-danger">Irregular</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

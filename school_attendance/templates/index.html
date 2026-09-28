@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Mark Attendance — School Attendance{% endblock %}
+
+{% block content %}
+
+<!-- Page Header -->
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+  <div>
+    <h4 class="mb-0 fw-bold">Mark Attendance</h4>
+    <small class="text-muted">Select a class and mark students present or absent by roll number</small>
+  </div>
+  <div class="d-flex gap-2 align-items-center">
+    <input type="date" id="dateInput" value="{{ date_str }}"
+           max="{{ today }}" class="form-control form-control-sm date-pick"
+           onchange="changeDate(this.value)" style="width:160px"/>
+    <a href="{{ url_for('export', cls=cls, date=date_str) }}"
+       class="btn btn-sm btn-outline-success">
+      <i class="bi bi-download me-1"></i>Export CSV
+    </a>
+  </div>
+</div>
+
+<!-- Class Summary Cards -->
+<div class="row g-3 mb-4">
+  {% for c in classes %}
+  {% set cs = all_classes_stats[c] %}
+  <div class="col-6 col-md-4 col-lg-2dot4">
+    <a href="{{ url_for('attendance_page', cls=c, date=date_str) }}"
+       class="class-card {% if c == cls %}active{% endif %}">
+      <div class="class-name">{{ c }}</div>
+      <div class="class-nums">
+        <span class="text-success fw-bold">{{ cs.present }}</span>
+        <span class="text-muted mx-1">/</span>
+        <span class="text-muted">{{ cs.total }}</span>
+      </div>
+      <div class="class-pct">{{ cs.pct }}%</div>
+      <div class="progress mt-2" style="height:4px;border-radius:2px;">
+        <div class="progress-bar bg-success" style="width:{{ cs.pct }}%"></div>
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Stats for selected class -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="mini-stat bg-white">
+      <div class="mini-label">Total Students</div>
+      <div class="mini-val">{{ st.total }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="mini-stat bg-white">
+      <div class="mini-label">Present</div>
+      <div class="mini-val text-success">{{ st.present }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="mini-stat bg-white">
+      <div class="mini-label">Absent</div>
+      <div class="mini-val text-danger">{{ st.absent }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="mini-stat bg-white">
+      <div class="mini-label">Attendance %</div>
+      <div class="mini-val {% if st.pct >= 75 %}text-success{% elif st.pct >= 50 %}text-warning{% else %}text-danger{% endif %}">
+        {{ st.pct }}%
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Attendance Card -->
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2 py-3">
+    <h6 class="mb-0 fw-semibold">
+      <i class="bi bi-people-fill me-2 text-primary"></i>{{ cls }}
+      <span class="badge bg-secondary ms-2">{{ date_str }}</span>
+    </h6>
+    <!-- Bulk mark -->
+    <div class="d-flex gap-2">
+      <form method="post" action="/mark_all" class="d-inline">
+        <input type="hidden" name="cls"    value="{{ cls }}"/>
+        <input type="hidden" name="date"   value="{{ date_str }}"/>
+        <input type="hidden" name="status" value="P"/>
+        <button type="submit" class="btn btn-sm btn-success">
+          <i class="bi bi-check-all me-1"></i>All Present
+        </button>
+      </form>
+      <form method="post" action="/mark_all" class="d-inline">
+        <input type="hidden" name="cls"    value="{{ cls }}"/>
+        <input type="hidden" name="date"   value="{{ date_str }}"/>
+        <input type="hidden" name="status" value="A"/>
+        <button type="submit" class="btn btn-sm btn-danger">
+          <i class="bi bi-x-circle me-1"></i>All Absent
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card-body">
+    <!-- Legend -->
+    <div class="d-flex gap-3 mb-3 flex-wrap">
+      <span class="legend-pill present">P = Present</span>
+      <span class="legend-pill absent">A = Absent</span>
+      <span class="legend-pill unmarked">Unmarked</span>
+    </div>
+
+    <!-- Roll Number Grid -->
+    <div class="roll-grid">
+      {% for roll in rolls %}
+      {% set status = day.get(roll|string, "") %}
+      <div class="roll-cell {% if status == 'P' %}is-present{% elif status == 'A' %}is-absent{% endif %}">
+        <!-- Roll number -->
+        <div class="roll-num">{{ roll }}</div>
+        <!-- Status label -->
+        <div class="roll-status">
+          {% if status == 'P' %}Present
+          {% elif status == 'A' %}Absent
+          {% else %}—{% endif %}
+        </div>
+        <!-- Buttons -->
+        <div class="roll-btns">
+          <form method="post" action="/mark" class="d-inline">
+            <input type="hidden" name="cls"    value="{{ cls }}"/>
+            <input type="hidden" name="date"   value="{{ date_str }}"/>
+            <input type="hidden" name="roll"   value="{{ roll }}"/>
+            <input type="hidden" name="status" value="P"/>
+            <button type="submit"
+              class="btn-mark p {% if status == 'P' %}active{% endif %}"
+              title="Mark Present">P</button>
+          </form>
+          <form method="post" action="/mark" class="d-inline">
+            <input type="hidden" name="cls"    value="{{ cls }}"/>
+            <input type="hidden" name="date"   value="{{ date_str }}"/>
+            <input type="hidden" name="roll"   value="{{ roll }}"/>
+            <input type="hidden" name="status" value="A"/>
+            <button type="submit"
+              class="btn-mark a {% if status == 'A' %}active{% endif %}"
+              title="Mark Absent">A</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function changeDate(val) {
+  const url = new URL(window.location);
+  url.searchParams.set('date', val);
+  window.location = url.toString();
+}
+</script>
+{% endblock %}
